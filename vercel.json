@@ -1,8 +1,7 @@
 {
   "functions": {
     "api/generate_docx.py": {
-      "runtime": "vercel-python@0.0.0",
       "maxDuration": 30
     }
   }
- }
+}
