@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ENSA Summary Generator</title>
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f4f6f9; color: #222; direction: rtl; }
+
+  .top-bar { background: #1a3a5c; color: white; padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+  .top-bar h1 { font-size: 20px; font-weight: 600; }
+  .top-bar .subtitle { font-size: 13px; opacity: 0.75; }
+  .badge { background: #2196F3; color: white; font-size: 11px; padding: 2px 10px; border-radius: 20px; margin-right: 10px; }
+
+  .container { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+
+  .card { background: white; border-radius: 10px; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+  .section-label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 8px; }
+
+  .api-row { display: flex; gap: 10px; align-items: center; }
+  .api-row input { flex: 1; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-family: monospace; direction: ltr; }
+  .api-row input:focus { outline: none; border-color: #2196F3; }
+  .btn-save { background: #e8f4fd; color: #1565C0; border: 1px solid #90CAF9; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; font-weight: 500; }
+  .btn-save:hover { background: #bbdefb; }
+  .api-status { font-size: 12px; color: #4CAF50; margin-top: 4px; display: none; }
+
+  .topic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .topic-btn { background: #f5f5f5; border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 8px 10px; font-size: 13px; cursor: pointer; color: #333; transition: all 0.15s; text-align: center; font-family: Arial, sans-serif; }
+  .topic-btn:hover { border-color: #2196F3; color: #1565C0; background: #e3f2fd; }
+  .topic-btn.active { border-color: #2196F3; background: #e3f2fd; color: #1565C0; font-weight: 600; }
+
+  .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  select { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; background: white; color: #333; font-family: Arial, sans-serif; }
+  select:focus { outline: none; border-color: #2196F3; }
+  input[type=text].notes { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-family: Arial, sans-serif; }
+  input[type=text].notes:focus { outline: none; border-color: #2196F3; }
+
+  .btn-primary { background: #1a3a5c; color: white; border: none; border-radius: 8px; padding: 12px 20px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; font-family: Arial, sans-serif; transition: background 0.15s; }
+  .btn-primary:hover { background: #2196F3; }
+  .btn-primary:disabled { background: #90a4ae; cursor: not-allowed; }
+
+  .output-section { margin-top: 1.25rem; }
+  .meta-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .pill { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: #e3f2fd; color: #1565C0; border: 1px solid #90CAF9; font-weight: 500; }
+
+  .output-area { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem 1.25rem; min-height: 200px; max-height: 500px; overflow-y: auto; font-size: 14px; line-height: 1.8; white-space: pre-wrap; color: #222; direction: rtl; font-family: Arial, sans-serif; }
+  .output-area.streaming { border-color: #2196F3; box-shadow: 0 0 0 2px #e3f2fd; }
+
+  .action-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+  .btn-word { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; border-radius: 8px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: Arial, sans-serif; }
+  .btn-word:hover { background: #c8e6c9; }
+  .btn-share { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; border-radius: 8px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: Arial, sans-serif; }
+  .btn-share:hover { background: #ffe0b2; }
+  .btn-copy { background: #f5f5f5; color: #333; border: 1px solid #ddd; border-radius: 8px; padding: 9px 16px; font-size: 13px; cursor: pointer; font-family: Arial, sans-serif; }
+  .btn-copy:hover { background: #eeeeee; }
+  .action-status { font-size: 12px; margin-right: auto; font-weight: 500; }
+  .action-status.success { color: #4CAF50; }
+  .action-status.error { color: #f44336; }
+
+  .share-box { background: #fff8e1; border: 1px solid #ffcc80; border-radius: 8px; padding: 10px 14px; margin-top: 10px; display: flex; gap: 8px; align-items: center; }
+  .share-url { flex: 1; font-size: 12px; font-family: monospace; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; text-align: left; }
+  .btn-copy-url { background: #ffe082; color: #5d4037; border: 1px solid #ffca28; border-radius: 6px; padding: 5px 12px; font-size: 12px; cursor: pointer; font-family: Arial, sans-serif; font-weight: 600; }
+
+  .footer { text-align: center; color: #aaa; font-size: 12px; padding: 2rem 0 3rem; }
+
+  @media (max-width: 600px) {
+    .config-row { grid-template-columns: 1fr; }
+    .topic-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div>
+    <h1>ENSA Summary Generator <span class="badge">v2.0</span></h1>
+    <div class="subtitle">גנרטור סיכומים חכם לקורס CCNA ENSA | מרצה: אלי פדידה | הכין: משה לופו</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- API Key -->
+  <div class="card">
+    <div class="section-label">🔑 Anthropic API Key</div>
+    <div class="api-row">
+      <input type="password" id="apiKey" placeholder="sk-ant-..." />
+      <button class="btn-save" onclick="saveKey()">שמור</button>
+    </div>
+    <div class="api-status" id="apiStatus">✓ מפתח נשמר בהצלחה</div>
+    <div style="font-size: 11px; color: #999; margin-top: 6px;">המפתח נשמר רק בדפדפן שלך ולא נשלח לשום שרת חיצוני.</div>
+  </div>
+
+  <!-- Topic Selection -->
+  <div class="card">
+    <div class="section-label">📚 בחר נושא</div>
+    <div class="topic-grid" id="topicGrid">
+      <button class="topic-btn active" data-topic="OSPF">OSPF</button>
+      <button class="topic-btn" data-topic="ACL">ACL</button>
+      <button class="topic-btn" data-topic="BGP">BGP</button>
+      <button class="topic-btn" data-topic="EIGRP">EIGRP</button>
+      <button class="topic-btn" data-topic="STP">STP / RSTP</button>
+      <button class="topic-btn" data-topic="NAT">NAT / PAT</button>
+      <button class="topic-btn" data-topic="QoS">QoS</button>
+      <button class="topic-btn" data-topic="VPN">VPN / IPsec</button>
+      <button class="topic-btn" data-topic="SD-WAN">SD-WAN</button>
+      <button class="topic-btn" data-topic="SNMP">SNMP / NetFlow</button>
+      <button class="topic-btn" data-topic="Automation">Network Automation</button>
+      <button class="topic-btn" data-topic="Wireless">Wireless / WiFi 6</button>
+    </div>
+  </div>
+
+  <!-- Config -->
+  <div class="card">
+    <div class="config-row">
+      <div>
+        <div class="section-label">📊 רמת פירוט</div>
+        <select id="detailLevel">
+          <option value="brief">תמציתי — עיקרי בלבד</option>
+          <option value="standard" selected>סטנדרטי — לבחינה</option>
+          <option value="deep">מעמיק — כולל פקודות</option>
+        </select>
+      </div>
+      <div>
+        <div class="section-label">🎯 מוקד הסיכום</div>
+        <select id="focusArea">
+          <option value="theory">תיאוריה ומושגים</option>
+          <option value="config" selected>הגדרות ופקודות</option>
+          <option value="troubleshoot">פתרון תקלות</option>
+          <option value="exam">שאלות בחינה</option>
+        </select>
+      </div>
+    </div>
+    <div class="section-label">💬 הערות נוספות (אופציונלי)</div>
+    <input type="text" class="notes" id="extraNotes" placeholder="למשל: תתמקד ב-LSA types, הוסף דוגמאות Packet Tracer..." />
+  </div>
+
+  <button class="btn-primary" id="generateBtn" onclick="generateSummary()">✨ צור סיכום עם Claude</button>
+
+  <!-- Output -->
+  <div class="output-section" id="outputSection" style="display:none;">
+    <div class="card">
+      <div class="meta-pills" id="metaRow"></div>
+      <div class="output-area" id="outputArea"></div>
+      <div class="action-row">
+        <button class="btn-word" onclick="exportToWord()" id="wordBtn">⬇ ייצא ל-Word</button>
+        <button class="btn-share" onclick="generateShareURL()">🔗 צור קישור שיתוף</button>
+        <button class="btn-copy" onclick="copyText()">📋 העתק טקסט</button>
+        <span class="action-status" id="actionStatus"></span>
+      </div>
+      <div id="shareBox" style="display:none;" class="share-box">
+        <div class="share-url" id="shareURL"></div>
+        <button class="btn-copy-url" onclick="copyShareURL()">העתק קישור</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">CCNA ENSA | מרצה: אלי פדידה | הכין: משה לופו | נבנה עם Claude AI</div>
+
+<script>
+let selectedTopic = 'OSPF';
+let currentSummary = '';
+let currentConfig = {};
+
+function markdownToHtml(text) {
+  return text.split('\n').map(line => {
+    if (line.startsWith('### ')) return '<h3 style="font-size:15px;font-weight:700;color:#1a3a5c;margin:14px 0 4px;border-right:4px solid #2196F3;padding-right:8px;">' + line.slice(4) + '</h3>';
+    if (line.startsWith('## ')) return '<h2 style="font-size:17px;font-weight:700;color:#1565C0;margin:18px 0 6px;border-bottom:2px solid #e3f2fd;padding-bottom:4px;">' + line.slice(3) + '</h2>';
+    if (line.startsWith('# ')) return '<h1 style="font-size:20px;font-weight:700;color:#1a3a5c;margin:20px 0 8px;">' + line.slice(2) + '</h1>';
+    if (line.startsWith('- ') || line.startsWith('* ')) return '<div style="display:flex;gap:8px;margin:3px 0;"><span style="color:#2196F3;font-weight:700;">◆</span><span>' + fmt(line.slice(2)) + '</span></div>';
+    if (line.startsWith('```') || line.startsWith('    ')) {
+      const code = line.replace(/^```\w*/, '').replace(/```$/, '').trim() || line.replace(/^    /, '');
+      return code ? '<div style="background:#f0f4ff;border-right:3px solid #2196F3;padding:6px 10px;margin:4px 0;font-family:monospace;font-size:13px;color:#1a1a6e;direction:ltr;text-align:left;">' + code + '</div>' : '';
+    }
+    if (line.trim() === '') return '<div style="height:8px;"></div>';
+    return '<p style="margin:4px 0;line-height:1.7;">' + fmt(line) + '</p>';
+  }).join('');
+}
+
+function fmt(text) {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '<strong style="color:#1a3a5c;">$1</strong>')
+    .replace(/`([^`]+)`/g, '<code style="background:#f0f4ff;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:12px;color:#1a1a6e;">$1</code>');
+}
+
+// Load saved API key
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('ensa_api_key');
+  if (saved) {
+    document.getElementById('apiKey').value = saved;
+    document.getElementById('apiStatus').style.display = 'block';
+  }
+  checkURLParams();
+});
+
+function saveKey() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (key) {
+    localStorage.setItem('ensa_api_key', key);
+    const status = document.getElementById('apiStatus');
+    status.style.display = 'block';
+    status.textContent = '✓ מפתח נשמר בהצלחה';
+  }
+}
+
+document.querySelectorAll('.topic-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedTopic = btn.dataset.topic;
+  });
+});
+
+function checkURLParams() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('topic')) {
+      const t = params.get('topic');
+      document.querySelectorAll('.topic-btn').forEach(b => {
+        if (b.dataset.topic === t) { b.classList.add('active'); selectedTopic = t; }
+        else b.classList.remove('active');
+      });
+    }
+    if (params.get('detail')) document.getElementById('detailLevel').value = params.get('detail');
+    if (params.get('focus')) document.getElementById('focusArea').value = params.get('focus');
+    if (params.get('notes')) document.getElementById('extraNotes').value = params.get('notes');
+    if (params.get('auto') === '1') setTimeout(generateSummary, 800);
+  } catch(e) {}
+}
+
+async function generateSummary() {
+  const apiKey = localStorage.getItem('ensa_api_key') || document.getElementById('apiKey').value.trim();
+  if (!apiKey) {
+    alert('נא להכניס ולשמור את ה-API Key תחילה');
+    return;
+  }
+
+  const btn = document.getElementById('generateBtn');
+  const outputArea = document.getElementById('outputArea');
+  const outputSection = document.getElementById('outputSection');
+  const detail = document.getElementById('detailLevel').value;
+  const focus = document.getElementById('focusArea').value;
+  const notes = document.getElementById('extraNotes').value;
+
+  currentConfig = { topic: selectedTopic, detail, focus, notes };
+
+  btn.disabled = true;
+  btn.textContent = '⏳ יוצר סיכום...';
+  outputSection.style.display = 'block';
+  outputArea.textContent = '';
+  outputArea.classList.add('streaming');
+  document.getElementById('shareBox').style.display = 'none';
+  document.getElementById('actionStatus').textContent = '';
+
+  const detailMap = { brief: 'תמציתי מאוד', standard: 'ברמת בחינת CCNA', deep: 'מעמיק עם פקודות Cisco IOS מלאות' };
+  const focusMap = { theory: 'תיאוריה ומושגים', config: 'הגדרות Cisco IOS ופקודות', troubleshoot: 'פתרון תקלות ודיאגנוסטיקה', exam: 'שאלות בחינה ונקודות מפתח' };
+
+  const prompt = `אתה מרצה CCNA בכיר ומומחה לקורס ENSA. משימתך: לכתוב סיכום לימוד מקצועי ומובנה של הנושא "${selectedTopic}" ברמה ${detailMap[detail]}, עם דגש על: ${focusMap[focus]}.
+${notes ? 'דרישות מיוחדות: ' + notes : ''}
+
+===== מבנה הסיכום =====
+כתוב את הסיכום לפי הפרקים הבאים (השתמש בכותרות ## לפרקים, ### לתת-פרקים):
+
+## מהו ${selectedTopic}? – הגדרה ועקרונות
+הגדרה תמציתית, מטרה, ומיקום ב-OSI/TCP-IP.
+
+## מאפיינים עיקריים
+רשימה ממוספרת של מאפיינים מרכזיים עם הסברים קצרים.
+
+## הגדרה בסיסית – Cisco IOS
+קבוצות פקודות מובנות לפי שלבים, כל קבוצה בבלוק \`\`\`ios נפרד עם הסבר לפני כל בלוק.
+
+## טבלת השוואה / סוגים
+טבלה מובנית בפורמט Markdown (| עמודה1 | עמודה2 |) — חובה אם הנושא כולל סוגים, מצבים, או פרוטוקולים מרובים.
+
+## פקודות ניטור ופתרון בעיות
+רשימת פקודות \`show\` ו-\`debug\` עם הסבר קצר לכל אחת.
+
+## הגדרות מתקדמות
+תצורות מורכבות יותר — פרמטרים, timers, אופטימיזציה.
+
+## נקודות מפתח לבחינה ✅
+רשימה ממוספרת של 8–12 נקודות שחובה לזכור לבחינת CCNA, כולל ערכי ברירת מחדל, הבדלים עדינים, ומלכודות נפוצות.
+
+===== כללי שפה ועיצוב — חובה לקיים =====
+
+1. **עברית בלבד בכל המשפטים** — כולל כותרות, הגדרות, הסברים ורשימות.
+2. **מושגים טכניים** — כתוב תמיד בעברית ואחריהם המונח האנגלי בסוגריים. דוגמאות:
+   - ✅ פרוטוקול מצב קישור (Link State Protocol)
+   - ✅ מרחק אדמיניסטרטיבי (Administrative Distance): 110
+   - ✅ מזהה נתב (Router ID)
+   - ❌ **אסור**: Administrative Distance: 110 — ללא הסבר עברי לפניו
+   - ❌ **אסור**: Protocol Number: 89 — ללא הסבר עברי לפניו
+3. **רשימות ממוספרות** — פורמט קבוע: \`1. שם המושג בעברית (English Term) — הסבר קצר\`
+4. **פקודות** — כתוב אך ורק בתוך בלוקי \`\`\`ios, **לעולם לא** בתוך שורת טקסט.
+5. **הסברים לפקודות** — לפני כל בלוק קוד, שורה שמתחילה ב: \`הסבר: ...\`
+6. **bold** — השתמש רק למושגים מרכזיים, לא לכל שורה.
+7. שורה ריקה בין כל פרק.`;
+
+
+  const metaRow = document.getElementById('metaRow');
+  metaRow.innerHTML = `<span class="pill">${selectedTopic}</span><span class="pill">${detailMap[detail]}</span><span class="pill">${focusMap[focus]}</span>`;
+
+  try {
+    const response = await fetch('/api/proxy', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 6000,
+        stream: false,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await response.json();
+    if (data.content && data.content[0]) {
+      currentSummary = data.content[0].text;
+      outputArea.innerHTML = markdownToHtml(currentSummary);
+    } else {
+      outputArea.textContent = 'שגיאה: ' + JSON.stringify(data);
+    }
+    outputArea.classList.remove('streaming');
+  } catch(err) {
+    outputArea.textContent = 'שגיאה: ' + err.message + '\n\nוודא שה-API Key תקין ושיש חיבור לאינטרנט.';
+    outputArea.classList.remove('streaming');
+  }
+
+  btn.disabled = false;
+  btn.textContent = '✨ צור סיכום עם Claude';
+}
+
+function generateShareURL() {
+  const params = new URLSearchParams({
+    topic: currentConfig.topic || selectedTopic,
+    detail: currentConfig.detail || document.getElementById('detailLevel').value,
+    focus: currentConfig.focus || document.getElementById('focusArea').value,
+    auto: '1'
+  });
+  if (currentConfig.notes) params.set('notes', currentConfig.notes);
+
+  const base = window.location.href.split('?')[0];
+  const url = base + '?' + params.toString();
+
+  document.getElementById('shareURL').textContent = url;
+  document.getElementById('shareBox').style.display = 'flex';
+  setStatus('קישור נוצר!', 'success');
+}
+
+function copyShareURL() {
+  const url = document.getElementById('shareURL').textContent;
+  navigator.clipboard.writeText(url).then(() => setStatus('קישור הועתק!', 'success'));
+}
+
+function copyText() {
+  navigator.clipboard.writeText(currentSummary).then(() => setStatus('טקסט הועתק!', 'success'));
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('actionStatus');
+  el.textContent = msg;
+  el.className = 'action-status ' + type;
+  setTimeout(() => { el.textContent = ''; el.className = 'action-status'; }, 3000);
+}
+
+async function exportToWord() {
+  if (!currentSummary) { setStatus('אין סיכום לייצוא', 'error'); return; }
+  const btn = document.getElementById('wordBtn');
+  btn.textContent = '⏳ מייצר...';
+  btn.disabled = true;
+
+  // ===== פלטת צבעים — זהה ל-ACL Final =====
+  const C = {
+    navyBg:    '1B3A6B',  // רקע כותרת ראשית
+    gold:      'D4A800',  // מסגרת זהב
+    white:     'FFFFFF',
+    lightBlue: 'D6E8F7',  // רקע תא הגדרה
+    blue:      '2E5FA3',  // מסגרת תאים, bold
+    darkText:  '2C3E50',  // טקסט רגיל
+    darkNavy:  '1B3A6B',  // כותרת תא (כחול כהה)
+    green:     '1E7A3C',  // Permit / ✅
+    red:       'B03020',  // Deny / ❌
+    orange:    'C96A10',  // אזהרות / שים לב
+    purple:    '6B2D8B',  // מושגים מיוחדים
+    teal:      '0F7B6C',  // טיפים
+    tealLight: 'D4F0EB',  // רקע teal
+    codeText:  'A8FF78',  // טקסט קוד
+    codeBg:    '1C1C1C',  // רקע קוד (שחור)
+    grayBg:    'ECF0F1',  // רקע שורות אפורות
+    greenBg:   'D4EDDA',  // רקע ירוק בהיר
+    orangeBg:  'FDE8D0',  // רקע כתום בהיר
+    purpleBg:  'EDE0F5',  // רקע סגול בהיר
+    redBg:     'FAD7D3',  // רקע אדום בהיר
+    subText:   'AAAAAA',  // מפריד header
+    grayText:  '5D6D7E',  // הערות
+  };
+
+  try {
+    const {
+      Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+      AlignmentType, BorderStyle, ShadingType, WidthType, VerticalAlign,
+      LevelFormat, XmlComponent
+    } = docx;
+
+    // bidiVisual — docx 8.5 לא תומך ב-property ישיר, מזריקים ידנית
+    class BidiVisual extends XmlComponent {
+      constructor() { super('w:bidiVisual'); }
+    }
+
+    function makeBidiTable(rows, borderColor, fillColor) {
+      const bc = borderColor || C.blue;
+      const fill = fillColor || C.lightBlue;
+      const tbl = new Table({
+        width: { size: 9200, type: WidthType.DXA },
+        columnWidths: [9200],
+        rows,
+      });
+      const tblPr = tbl.root.find(n => n && n.rootKey === 'w:tblPr');
+      if (tblPr) tblPr.root.unshift(new BidiVisual());
+      return tbl;
+    }
+
+    const bdr = (color) => ({ style: BorderStyle.SINGLE, size: 6, color, space: 0 });
+    const noBdr = () => ({ style: BorderStyle.NONE, size: 0, color: 'FFFFFF' });
+
+    // ===== עיבוד Markdown לאלמנטים =====
+    const lines = currentSummary.split('\n');
+    const bodyChildren = [];
+    let inCode = false;
+    let codeLines = [];
+
+    // ===================================================================
+    // עיקרון RTL/LTR — זהה ל-ACL Final:
+    // כל טקסט גוף נמצא בתוך טבלה עם bidiVisual.
+    // בתוך תא bidiVisual: jc=LEFT נראה ימינה (הפרדוקס).
+    // כותרות H1/H2 — מחוץ לטבלה, CENTER בלבד, ללא bidi.
+    // קוד — bidirectional:false + LEFT = LTR מוחלט.
+    // טבלת השוואה — עמודה ראשונה רחבה יותר, wrap:false.
+    // ===================================================================
+
+    // wrapInBidiTable — עוטף פסקאות בטבלה עם bidiVisual אמיתי
+    function wrapInBidiTable(paragraphs, borderColor) {
+      const bc = borderColor || C.blue;
+      const rows = [new TableRow({
+        children: [new TableCell({
+          width: { size: 9200, type: WidthType.DXA },
+          borders: { top: bdr(bc), bottom: bdr(bc), left: bdr(bc), right: bdr(bc) },
+          shading: { fill: C.lightBlue, type: ShadingType.CLEAR },
+          margins: { top: 100, bottom: 100, left: 140, right: 140 },
+          children: paragraphs,
+        })]
+      })];
+      return makeBidiTable(rows, bc);
+    }
+
+    // פסקה בתוך תא bidiVisual — jc=LEFT (= ימינה בגלל bidiVisual)
+    // ללא bidi ולא rtl על הפסקה או ה-runs
+    function cellPara(runs, opts = {}) {
+      return new Paragraph({
+        children: runs,
+        alignment: AlignmentType.LEFT,
+        spacing: { before: opts.before !== undefined ? opts.before : 20, after: opts.after !== undefined ? opts.after : 20 },
+      });
+    }
+
+    function buildCodeLine(text) {
+      return new Paragraph({
+        children: [new TextRun({ text: text || ' ', font: 'Courier New', size: 18, color: C.codeText })],
+        shading: { fill: C.codeBg, type: ShadingType.CLEAR },
+        indent: { left: 160, right: 160 },
+        spacing: { before: 0, after: 0, line: 240 },
+        alignment: AlignmentType.LEFT,
+        bidirectional: false,
+      });
+    }
+
+    function parseInline(text) {
+      const runs = [];
+      const re = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+      let last = 0, m;
+      while ((m = re.exec(text)) !== null) {
+        if (m.index > last) runs.push(new TextRun({ text: text.slice(last, m.index), font: 'Arial', size: 22, color: C.darkText }));
+        if (m[0].startsWith('**'))
+          runs.push(new TextRun({ text: m[0].slice(2, -2), font: 'Arial', size: 22, bold: true, color: C.blue }));
+        else
+          runs.push(new TextRun({ text: m[0].slice(1, -1), font: 'Courier New', size: 18, color: C.orange }));
+        last = m.index + m[0].length;
+      }
+      if (last < text.length) runs.push(new TextRun({ text: text.slice(last), font: 'Arial', size: 22, color: C.darkText }));
+      return runs;
+    }
+
+    let pendingCellParas = [];
+
+    function flushPending(borderColor) {
+      if (!pendingCellParas.length) return;
+      bodyChildren.push(wrapInBidiTable([...pendingCellParas], borderColor));
+      pendingCellParas = [];
+    }
+
+    function flushCode() {
+      if (!codeLines.length) return;
+      flushPending();
+      bodyChildren.push(new Paragraph({ children: [], spacing: { before: 40 } }));
+      for (const cl of codeLines) bodyChildren.push(buildCodeLine(cl));
+      bodyChildren.push(new Paragraph({ children: [], spacing: { after: 40 } }));
+      codeLines = [];
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // ---- בלוקי קוד ----
+      if (line.startsWith('```')) {
+        if (!inCode) { inCode = true; codeLines = []; }
+        else { inCode = false; flushCode(); }
+        continue;
+      }
+      if (inCode) { codeLines.push(line); continue; }
+
+      // ---- כותרת H1 (מחוץ לטבלה, CENTER) ----
+      if (line.startsWith('# ') && !line.startsWith('## ')) {
+        flushPending();
+        bodyChildren.push(new Paragraph({ children: [], spacing: { before: 80 } }));
+        bodyChildren.push(new Paragraph({
+          children: [new TextRun({ text: line.slice(2), font: 'Arial', size: 30, bold: true, color: C.white })],
+          shading: { fill: C.navyBg, type: ShadingType.CLEAR },
+          spacing: { before: 220, after: 130 },
+          alignment: AlignmentType.CENTER,
+          border: { bottom: { style: BorderStyle.SINGLE, size: 10, color: C.gold, space: 1 } },
+        }));
+        continue;
+      }
+
+      // ---- כותרת H2 (מחוץ לטבלה, CENTER) ----
+      if (line.startsWith('## ') && !line.startsWith('### ')) {
+        flushPending();
+        bodyChildren.push(new Paragraph({ children: [], spacing: { before: 80 } }));
+        bodyChildren.push(new Paragraph({
+          children: [new TextRun({ text: line.slice(3), font: 'Arial', size: 30, bold: true, color: C.white })],
+          shading: { fill: C.navyBg, type: ShadingType.CLEAR },
+          spacing: { before: 220, after: 130 },
+          alignment: AlignmentType.CENTER,
+          border: { bottom: { style: BorderStyle.SINGLE, size: 10, color: C.gold, space: 1 } },
+        }));
+        continue;
+      }
+
+      // ---- כותרת H3 (בתוך תא) ----
+      if (line.startsWith('### ')) {
+        pendingCellParas.push(new Paragraph({
+          children: [new TextRun({ text: line.slice(4), font: 'Arial', size: 24, bold: true, color: C.darkNavy })],
+          alignment: AlignmentType.LEFT,
+          border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C.blue, space: 1 } },
+          spacing: { before: 140, after: 60 },
+        }));
+        continue;
+      }
+
+      // ---- רשימה ממוספרת (בתוך תא) ----
+      // פורמט: "1. שם (English) — הסבר"
+      if (/^\d+\.\s/.test(line)) {
+        const match = line.match(/^(\d+\.)\s+(.*)/);
+        if (match) {
+          const num = match[1];
+          const rest = match[2];
+          // פיצול על " — " או " – "
+          const dashMatch = rest.match(/^(.+?)\s+[—–]\s+(.+)$/);
+          let runs;
+          if (dashMatch) {
+            runs = [
+              new TextRun({ text: num + ' ', font: 'Arial', size: 22, bold: true, color: C.blue }),
+              new TextRun({ text: dashMatch[1], font: 'Arial', size: 22, bold: true, color: C.blue }),
+              new TextRun({ text: ' — ', font: 'Arial', size: 22, color: C.darkText }),
+              ...parseInline(dashMatch[2]),
+            ];
+          } else {
+            runs = [
+              new TextRun({ text: num + ' ', font: 'Arial', size: 22, bold: true, color: C.blue }),
+              ...parseInline(rest),
+            ];
+          }
+          pendingCellParas.push(cellPara(runs, { before: 35, after: 35 }));
+        }
+        continue;
+      }
+
+      // ---- שורת הסבר לפני קוד ----
+      if (line.startsWith('הסבר:') || line.startsWith('הסבר :')) {
+        const explainText = line.replace(/^הסבר\s*:\s*/, '');
+        pendingCellParas.push(cellPara([
+          new TextRun({ text: 'הסבר: ', font: 'Arial', size: 20, bold: true, color: C.teal }),
+          new TextRun({ text: explainText, font: 'Arial', size: 20, color: C.darkText, italics: true }),
+        ], { before: 50, after: 10 }));
+        continue;
+      }
+
+      // ---- bullets (בתוך תא) ----
+      if (line.startsWith('- ') || line.startsWith('* ')) {
+        pendingCellParas.push(cellPara([
+          new TextRun({ text: '◆ ', font: 'Arial', size: 22, bold: true, color: C.blue }),
+          ...parseInline(line.slice(2))
+        ], { before: 30, after: 30 }));
+        continue;
+      }
+
+      // ---- טבלת Markdown ----
+      if (line.startsWith('|')) {
+        flushPending();
+        const tableLines = [];
+        let j = i;
+        while (j < lines.length && lines[j].startsWith('|')) { tableLines.push(lines[j]); j++; }
+        i = j - 1;
+
+        const rows = tableLines.filter(l => !/^\|[\s:-]+\|/.test(l));
+        if (!rows.length) continue;
+
+        const colCount = rows[0].split('|').filter((_, idx, arr) => idx > 0 && idx < arr.length - 1).length;
+        const tableWidth = 9200;
+
+        // חלוקת עמודות: עמודה ראשונה 30%, השאר מתחלקות שווה
+        // זה מונע שבירת שורות בעמודות תוכן
+        let colWidths;
+        if (colCount === 2) {
+          colWidths = [2760, 6440]; // 30% / 70%
+        } else if (colCount === 3) {
+          colWidths = [2300, 3450, 3450]; // 25% / 37.5% / 37.5%
+        } else {
+          const colW = Math.floor(tableWidth / colCount);
+          colWidths = Array(colCount).fill(colW);
+        }
+
+        const tableRows = rows.map((row, rowIdx) => {
+          const cells = row.split('|').filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+          const isHeader = rowIdx === 0;
+          return new TableRow({
+            children: cells.map((cell, colIdx) => new TableCell({
+              width: { size: colWidths[colIdx] || Math.floor(tableWidth / colCount), type: WidthType.DXA },
+              borders: { top: bdr(C.blue), bottom: bdr(C.blue), left: bdr(C.blue), right: bdr(C.blue) },
+              shading: { fill: isHeader ? C.navyBg : (rowIdx % 2 === 0 ? C.lightBlue : C.white), type: ShadingType.CLEAR },
+              margins: { top: 80, bottom: 80, left: 120, right: 120 },
+              children: [new Paragraph({
+                children: [new TextRun({
+                  text: cell.trim().replace(/`/g, ''),
+                  font: cell.includes('`') ? 'Courier New' : 'Arial',
+                  size: isHeader ? 22 : 20,
+                  bold: isHeader,
+                  color: isHeader ? C.white : C.darkText,
+                })],
+                alignment: isHeader ? AlignmentType.CENTER : AlignmentType.LEFT,
+                spacing: { before: 20, after: 20 },
+              })]
+            }))
+          });
+        });
+
+        bodyChildren.push(new Paragraph({ children: [], spacing: { before: 80 } }));
+        const mdTbl = new Table({
+          width: { size: tableWidth, type: WidthType.DXA },
+          columnWidths: colWidths,
+          rows: tableRows,
+        });
+        const mdTblPr = mdTbl.root.find(n => n && n.rootKey === 'w:tblPr');
+        if (mdTblPr) mdTblPr.root.unshift(new BidiVisual());
+        bodyChildren.push(mdTbl);
+        bodyChildren.push(new Paragraph({ children: [], spacing: { after: 80 } }));
+        continue;
+      }
+
+      // ---- שורה ריקה ----
+      if (!line.trim()) {
+        if (pendingCellParas.length)
+          pendingCellParas.push(new Paragraph({ children: [], spacing: { before: 0, after: 30 } }));
+        continue;
+      }
+
+      // ---- טקסט רגיל (בתוך תא) ----
+      pendingCellParas.push(cellPara(parseInline(line)));
+    }
+    if (inCode) flushCode();
+    flushPending();
+
+    // ===== בניית המסמך =====
+    const today = new Date().toLocaleDateString('he-IL');
+
+    const doc = new Document({
+      sections: [{
+        properties: {
+          page: {
+            size: { width: 11906, height: 16838 },
+            margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 }
+          }
+        },
+        children: [
+          // ===== כותרת ראשית — בסגנון ACL Final =====
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'סיכום ', font: 'Arial', size: 52, bold: true, color: C.gold }),
+              new TextRun({ text: selectedTopic, font: 'Arial', size: 44, bold: true, color: C.gold }),
+            ],
+            shading: { fill: C.navyBg, type: ShadingType.CLEAR },
+            spacing: { before: 160 },
+            alignment: AlignmentType.CENTER,
+            border: { top: { style: BorderStyle.SINGLE, size: 12, color: C.gold, space: 1 } },
+            bidi: true,
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: 'CCNA: Enterprise Networking, Security & Automation', font: 'Arial', size: 24, color: C.lightBlue })],
+            shading: { fill: C.navyBg, type: ShadingType.CLEAR },
+            alignment: AlignmentType.CENTER,
+            bidi: true,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'הכין: משה לופו', font: 'Arial', size: 28, bold: true, color: C.greenBg }),
+              new TextRun({ text: '   |   ', font: 'Arial', size: 28, color: C.subText }),
+              new TextRun({ text: 'מרצה: אלי פדידה', font: 'Arial', size: 28, bold: true, color: C.white }),
+              new TextRun({ text: '   |   ', font: 'Arial', size: 28, color: C.subText }),
+              new TextRun({ text: today, font: 'Arial', size: 24, color: C.lightBlue }),
+            ],
+            shading: { fill: C.navyBg, type: ShadingType.CLEAR },
+            spacing: { after: 140 },
+            alignment: AlignmentType.CENTER,
+            border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: C.gold, space: 1 } },
+            bidi: true,
+          }),
+          new Paragraph({ children: [], spacing: { before: 80 } }),
+
+          // ===== תוכן הסיכום =====
+          ...bodyChildren,
+
+          // ===== footer =====
+          new Paragraph({ children: [], spacing: { before: 200 } }),
+          new Paragraph({
+            children: [new TextRun({ text: `CCNA ENSA | ${selectedTopic} | הכין: משה לופו | מרצה: אלי פדידה`, font: 'Arial', size: 18, color: C.grayText })],
+            alignment: AlignmentType.CENTER,
+            border: { top: { style: BorderStyle.SINGLE, size: 4, color: C.blue, space: 4 } },
+            spacing: { before: 100 },
+            bidi: true,
+          }),
+        ]
+      }]
+    });
+
+    const buffer = await Packer.toBlob(doc);
+    const url = URL.createObjectURL(buffer);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ENSA_${selectedTopic}_Summary.docx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus('קובץ Word הורד!', 'success');
+  } catch(e) {
+    setStatus('שגיאה ביצוא: ' + e.message, 'error');
+    console.error(e);
+  }
+
+  btn.textContent = '⬇ ייצא ל-Word';
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
