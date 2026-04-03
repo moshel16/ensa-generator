@@ -378,7 +378,7 @@ async function exportToWord() {
   btn.disabled = true;
 
   try {
-    const response = await fetch('/api/generate-docx', {
+    const response = await fetch('/api/generate_docx', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ summary: currentSummary, topic: selectedTopic })
