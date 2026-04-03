@@ -1,10 +1,14 @@
+
 {
   "functions": {
     "api/generate_docx.py": {
       "maxDuration": 29
-    },
-    "api/proxy.js": {
-      "maxDuration": 29
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api/proxy",
+      "destination": "https://ensa-proxy.onrender.com/api/proxy"
+    }
+  ]
 }
