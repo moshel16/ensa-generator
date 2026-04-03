@@ -307,7 +307,7 @@ ${notes ? 'דרישות מיוחדות: ' + notes : ''}
   metaRow.innerHTML = `<span class="pill">${selectedTopic}</span><span class="pill">${detailMap[detail]}</span><span class="pill">${focusMap[focus]}</span>`;
 
   try {
-    const response = await fetch('https://ensa-proxy.onrender.com/api/proxy', {
+    const response = await fetch('/api/proxy', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
